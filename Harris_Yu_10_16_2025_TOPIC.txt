@@ -1,0 +1,271 @@
+#1. The Singleton design pattern ensures that only one instance of a class exists throughout the entire program runtime.
+→ Its goal is to provide a single global access point to that instance.
+
+Two Implementation Modes
+
+Lazy Loading (on-demand):
+The instance is created only when first needed.
+→ Requires a null check before instantiation.
+→ The instance cannot be final, since it’s assigned later.
+
+Eager Loading (pre-initialized):
+The instance is created at class loading time (usually in a static block).
+→ No null check needed.
+→ The instance can be declared final because it’s immutable and initialized once.
+
+Access Control
+
+The constructor is private → prevents external instantiation.
+
+A public static getInstance() method provides controlled access.
+
+External code cannot use new to create another object.
+
+You should never expose the instance field directly (no public access).
+→ Always access through get/set methods to maintain encapsulation.
+
+Static & Memory Handling
+
+The static instance and class template are stored in the JVM’s method area,
+while created objects go into the heap.
+
+The static block (if used) runs once when the class loads, perfect for eager loading.
+
+Best Practices
+
+Use lazy loading if the object is large or rarely used.
+
+Use eager loading if the object is small or frequently used.
+
+The final keyword ensures immutability (used only in eager mode).
+
+Avoid modifying instance references after creation.
+
+#2. Factory Design Pattern can be deduced:
+
+Purpose:
+To centralize object creation logic for related types, providing a single point (the factory) to handle instantiation based on input (e.g., payment type).
+
+Core Components:
+Interface (e.g., Payment):
+
+Defines a common method (e.g., pay(double money)) that all payment types must implement.
+
+Ensures consistency across different implementations.
+
+Concrete Implementations:
+
+Classes (e.g., PayPalPayment, CreditCardPayment) that implement the interface and provide specific behavior for the pay method.
+
+Factory Class (e.g., PaymentFactory):
+
+Contains a static method (e.g., getPayment(String type)) to create and return the appropriate payment object based on the input type.
+
+Uses conditional logic (e.g., if-else or switch) to determine which concrete class to instantiate.
+
+Key Implementation Details:
+The factory method is typically static to avoid unnecessary object creation, especially when the factory is stateless.
+
+The pattern encapsulates object creation, allowing the client (e.g., PaymentService) to use objects without knowing their specific classes.
+
+Only the main class (e.g., PaymentService) is public; other classes (factory, implementations) are package-private, adhering to Java file structure rules.
+
+Example Workflow:
+Client calls PaymentFactory.getPayment("creditcard").
+
+Factory returns a CreditCardPayment instance.
+
+Client invokes payment.pay(amount) without needing to know the underlying implementation.
+
+Additional Java Concepts Linked:
+Interfaces vs. Classes: Interfaces define contracts; classes provide implementations.
+
+Static Methods: Used in the factory to enable direct class-level access.
+
+Exception Handling: Factory methods may throw exceptions (e.g., for invalid types), which can be handled using try-catch or propagated with throws.
+
+Autoboxing/Auto-unboxing: Mechanism to convert between primitive types (e.g., double) and their wrapper classes (e.g., Double).
+
+#3. Java's data structures are organized under two distinct hierarchies: the Collection Framework and the Map interface
+
+Collection Framework (Under Iterable):
+
+Purpose: Represents a group of objects treated as a single unit, known as elements.
+
+Key Characteristic: Because it extends Iterable, all Collection types can be directly iterated over using for-each loops or iterators.
+
+Main Sub-Interfaces: List, Set, Queue/Deque.
+
+Map Framework (Separate from Collection):
+
+Purpose: Represents a group of key-value pairs, where each key is unique.
+
+Key Characteristic: It is NOT a subtype of Collection or Iterable. Therefore, you cannot directly iterate over a Map itself.
+
+How to Iterate: You must first convert a Map into a Collection view (e.g., map.keySet(), map.values(), or map.entrySet()) and then iterate over that collection.
+
+Relationships and "When to Use Which" Within the Collection Framework
+The document emphasizes answering with "When to use which?" to demonstrate practical experience. Here is a breakdown of the critical data structures based on their relationships and use cases.
+
+1. The List Interface (Ordered, Allows Duplicates)
+Lists maintain the insertion order of elements.
+
+ArrayList vs. LinkedList:
+
+Relationship: Both implement the List interface but with different underlying data structures (dynamic array vs. doubly-linked list).
+
+When to use ArrayList:
+
+Use Case: Most common and general-purpose List.
+
+Reason: Excellent for random access (getting an element by index get(i) is very fast - O(1)).
+
+Trade-off: Adding or removing elements from anywhere but the end can be slow (may require shifting elements - O(n)).
+
+When to use LinkedList:
+
+Use Case: When you frequently add or remove elements from the beginning or middle of the list.
+
+Reason: Adding/removing elements is fast (O(1)) once the position is found, as it only requires changing node pointers.
+
+Trade-off: Random access is slow (O(n)), as it requires traversing the list from the start or end.
+
+2. The Set Interface (Unique Elements Only)
+Sets do not allow duplicate elements. The concept of "order" differentiates them.
+
+HashSet vs. LinkedHashSet:
+
+Relationship: LinkedHashSet is a subclass of HashSet. It maintains a hash table for uniqueness but adds a doubly-linked list running through all entries.
+
+When to use HashSet:
+
+Use Case: When you need to ensure uniqueness and do not care about the order in which elements are stored or iterated.
+
+Reason: It offers the fastest performance for add, remove, and contains operations (O(1)).
+
+When to use LinkedHashSet:
+
+Use Case: When you need a Set that also maintains the insertion order of elements.
+
+Reason: It provides the performance of a HashSet while giving predictable, order-based iteration.
+
+3. The Queue/Deque Interface (FIFO/LIFO)
+Designed for holding elements prior to processing.
+
+Relationship: Deque (Double Ended Queue) extends the Queue interface, allowing insertion and removal from both ends.
+
+When to use a Queue (e.g., LinkedList, PriorityQueue):
+
+Use Case: For tasks like job scheduling, message passing, or implementing BFS algorithms (First-In-First-Out).
+
+When to use a Deque (e.g., ArrayDeque):
+
+Use Case: When you need a stack (LIFO) or a queue that can operate from both ends. ArrayDeque is often more efficient than Stack (a legacy class) or LinkedList for queue/deque operations.
+
+BlockingQueue:
+
+Use Case: Specifically for multi-threaded programming. It provides operations that wait for the queue to become non-empty when retrieving an element or wait for space to become available when storing an element.
+
+Legacy Classes (A Note on Thread Safety)
+The document mentions "legacy classes" that are thread-safe but low-performance.
+
+Relationship: These are the older, synchronized implementations like Vector and Hashtable.
+
+When to use (or not use): They are generally deprecated. If you need thread-safe collections, prefer the modern implementations in the java.util.concurrent package (e.g., ConcurrentHashMap, CopyOnWriteArrayList) which offer better performance through more sophisticated locking mechanisms.
+
+#4 OOP:
+Object-Oriented Programming (OOP) is a paradigm built on four foundational pillars — Encapsulation, Inheritance, Polymorphism, and Abstraction — that structure and organize software design in Java.
+
+//Encapsulation — Data Hiding through Access Control
+Encapsulation restricts direct access to class data and methods, exposing only what is necessary.
+In Java, this is achieved using access modifiers (private, protected, public) combined with getters and setters.
+It prevents unintended interference and maintains integrity of internal state.
+In immutable designs, only getter methods exist, often returning deep copies or unmodifiable views.
+Adding final to fields and methods strengthens encapsulation by preventing modification and inheritance where not intended.
+
+// Inheritance — Reusing and Extending Behavior
+Inheritance allows one class to extend another, reusing existing functionality and introducing new or specialized behavior.
+The parent (superclass) provides the base structure; the child (subclass) extends it.
+Applying the final keyword to a class prevents further subclassing.
+Method overriding lets subclasses redefine parent behavior while preserving method signatures.
+
+// Polymorphism — One Interface, Multiple Forms
+Polymorphism enables the same method call to behave differently based on the object’s runtime type.
+There are two forms:
+Compile-time (Overloading) — Multiple methods share the same name but differ by parameter number, type, or order. Return type alone does not distinguish overloads.
+Runtime (Overriding) — A subclass redefines a superclass method with the same signature, allowing dynamic dispatch based on the object’s actual type.
+This principle underlies flexibility and extensibility in modern Java designs.
+
+// Abstraction — Defining What, Not How
+Abstraction focuses on what an object does, not how it does it.
+In Java, it’s realized via:
+Abstract classes, which can contain both defined and undefined methods (partial implementation).
+Interfaces, which define only method signatures and constants, allowing multiple inheritance of type.
+Developers choose between them depending on whether shared implementation (abstract class) or shared contract (interface) is required.
+
+// The Role of final, finally, and finalize
+final — Prevents modification:
+Final variable: value can’t change.
+Final method: can’t be overridden.
+Final class: can’t be extended.
+finally — Ensures cleanup code executes after a try/catch block (except in extreme cases like JVM termination).
+finalize() — Defined in Object, called once before garbage collection; can be overridden for cleanup but is largely deprecated in modern Java.
+
+#5 SOLID
+The SOLID principles represent five key guidelines for building maintainable, scalable, and flexible object-oriented software.
+They extend the foundation of OOP — encapsulation, inheritance, polymorphism, and abstraction — by providing design rules that help prevent rigidity, fragility, and code duplication.
+
+// S — Single Responsibility Principle (SRP)
+“A class should have only one reason to change.”
+Each class or module should focus on a single responsibility or concern.
+When a class handles multiple unrelated tasks, changes in one area may break others.
+Applying SRP results in:
+Cleaner separation of logic.
+Easier debugging and unit testing.
+Improved reusability — classes serve focused purposes.
+Example:
+Instead of one UserManager class that validates input, connects to a database, and sends emails — separate it into UserValidator, UserRepository, and EmailService.
+
+// O — Open/Closed Principle (OCP)
+“Software entities should be open for extension, but closed for modification.”
+Code should allow behavior to be extended without altering existing source.
+This is often achieved through abstraction and polymorphism:
+Define interfaces or abstract classes that describe behavior.
+Implement or extend them for new functionality instead of modifying existing code.
+This principle helps prevent regressions and supports incremental feature growth.
+
+// L — Liskov Substitution Principle (LSP)
+“Subtypes must be substitutable for their base types.”
+Any subclass should behave consistently with what its superclass promises.
+If replacing a base object with a subclass breaks functionality or violates expected behavior, inheritance is misused.
+Essential rule: Derived classes must not weaken preconditions or strengthen postconditions.
+In Java, this means ensuring that overridden methods honor the same contracts defined by their parents.
+
+// I — Interface Segregation Principle (ISP)
+“Clients should not be forced to depend on interfaces they do not use.”
+Large, “fat” interfaces should be split into smaller, specific ones.
+This keeps implementations minimal and avoids forcing classes to implement irrelevant methods.
+Example:
+Instead of one bulky Machine interface with print(), scan(), and fax(), define separate interfaces like Printer, Scanner, and Fax.
+This promotes composability and simplifies testing and dependency management.
+
+//D — Dependency Inversion Principle (DIP)
+“Depend on abstractions, not on concretions.”
+High-level modules should not depend directly on low-level modules; both should rely on abstractions (interfaces or abstract classes).
+This reduces coupling and improves flexibility.
+Dependency Injection frameworks (e.g., Spring) are practical tools that implement this principle in modern Java systems.
+
+// Why SOLID Matters
+Following the SOLID principles leads to:
+Modular systems where components can evolve independently.
+Reusable and testable code.
+Sustainable large-scale software that adapts to change.
+Violating them typically results in tight coupling, code duplication, and difficult maintenance — symptoms of poor architecture.
+
+// The SOLID principles extend beyond coding style — they define architectural discipline.They ensure that:
+Each class has a clear purpose (SRP),
+Systems evolve safely (OCP),
+Hierarchies behave predictably (LSP),
+Interfaces remain focused (ISP), and
+Dependencies stay flexible (DIP).
+Together, they transform basic OOP concepts into a robust design philosophy for building long-lived, maintainable Java applications.
