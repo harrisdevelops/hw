@@ -1,0 +1,175 @@
+#1. Thread safety -> r/w problem
+- Thread safety arises only under concurrency.
+Multiple threads executing simultaneously do not inherently cause safety issues — they become problematic only when those threads access shared resources without proper coordination.
+- Root cause: shared mutable state.
+In the JVM, threads have independent stacks, but they share heap memory, where objects and global data reside.
+Therefore, thread safety issues occur within the heap, not the stack.
+- Nature of the problem: read/write conflict.
+A thread safety issue is fundamentally a read–write (R/W) conflict — when one thread reads a variable while another writes to the same memory location concurrently.
+This leads to inconsistent or unpredictable data states.
+- Concurrency ≠ thread safety violation.
+High concurrency (many simultaneous requests) may degrade performance or exhaust hardware resources but does not automatically cause data inconsistency.
+Thread safety violations occur only when shared data is accessed without synchronization.
+- Resolution via locking mechanisms.
+* Pessimistic locking (synchronized, Lock): assumes race conditions always exist; prevents concurrent access.
+* Optimistic locking (CAS/versioning): assumes minimal conflict; checks data version before committing updates.
+- Choosing the right lock depends on access patterns.
+* Frequent reads/writes → use pessimistic locks.
+* Mostly reads, rare writes → use optimistic locks for higher performance.
+
+#2. Pessimistic lock -> Synchronized vs Lock
+- Thread safety requires mutual exclusion.
+When multiple threads may access shared data concurrently, mutual exclusion (locking) is necessary to ensure only one thread writes or reads at a time.
+Pessimistic locking assumes conflict is likely, so it always locks before access.
+- Pessimistic lock → built-in vs explicit mechanism.
+In Java, pessimistic locking can be achieved in two ways:
+* Using the synchronized keyword (JVM-level intrinsic lock).
+* Using the Lock interface from java.util.concurrent.locks (explicit, API-level lock).
+- synchronized: JVM-managed, implicit monitor lock.
+* Managed automatically by the JVM.
+* Acquires and releases locks implicitly (entry/exit of synchronized block).
+* Simpler to use, but less flexible.
+* Can cause thread blocking and context switching overhead when contention is high.
+* No timeout or interruptible lock acquisition — once waiting, the thread is stuck until released.
+- Lock: Explicit and flexible control.
+* Requires manual acquisition (lock()) and release (unlock()), usually in a try…finally block.
+* Supports advanced features:
+-- Try-lock (timeout-based, non-blocking acquisition).
+-- Interruptible lock waiting.
+-- Fair vs unfair locks.
+* Provides higher performance under high contention due to fine-grained control and reduced blocking.
+5. Tradeoff: simplicity vs flexibility.
+- synchronized → simple, automatic, suitable for basic mutual exclusion.
+- Lock → complex but powerful, suited for systems demanding high concurrency and custom control.
+
+#3. Thread priority -> execution order
+- Thread scheduling determines execution order.
+When multiple threads are created, the CPU scheduler decides which thread runs first and for how long.
+This scheduling is managed by the JVM and underlying OS, not by the programmer.
+- Thread priority is only a hint — not a guarantee.
+Each Java thread has a priority value (1–10), where higher values indicate a stronger request for CPU time.
+However, thread priority does not guarantee execution order, because:
+* Scheduling ultimately depends on the operating system’s thread scheduler.
+* JVM behavior may vary across platforms.
+- Priority influences, but does not control, scheduling.
+Higher-priority threads tend to be favored when CPU time is scarce, but:
+* The scheduler can still preempt or delay them.
+* Lower-priority threads are not starved indefinitely unless the system is overloaded.
+- Execution order under concurrency is non-deterministic.
+Even if priorities are set, the actual running order is unpredictable — due to:
+* Context switching by the CPU.
+* Parallel execution on multi-core processors.
+* Internal JVM optimizations and just-in-time (JIT) compilation.
+- Correctness must not depend on priority.
+Priority should be used only for performance tuning, never for ensuring correctness.
+Synchronization, not priority, is the mechanism to guarantee safe and predictable execution.
+
+#4. Optimistic lock -> Compare And Swap (CAS)-> Version -> AtomicInteger/AtomicReference -> ABA problem -> timeStamp
+- Optimistic locking assumes low contention.
+Unlike pessimistic locking, which blocks access pre-emptively, optimistic lock assumes most threads won’t conflict.
+Instead of preventing conflicts, it detects them at the end of an operation — allowing higher concurrency and less blocking.
+- Core mechanism: Compare-And-Swap (CAS).
+CAS is the atomic instruction that powers optimistic locking.
+It compares a variable’s expected value (old) with its actual value in memory;
+* If they match → updates to a new value (swap succeeds).
+* If they differ → another thread modified the value → operation retries or aborts.
+This ensures atomicity without using locks.
+- CAS relies on version checking to ensure data freshness.
+To detect concurrent modifications, the system tracks a version (or expected value) alongside the actual data.
+Before updating, the thread verifies that the version hasn’t changed — ensuring the data is still valid since last read.
+- Atomic classes in java.util.concurrent.atomic implement CAS.
+* AtomicInteger, AtomicLong, AtomicReference, etc., encapsulate CAS operations provided by the CPU.
+* Each performs lock-free, thread-safe updates by using native CAS instructions (via Unsafe class).
+These are the building blocks of modern concurrent utilities in Java.
+- The ABA problem: a hidden flaw in CAS.
+CAS only checks whether the value has changed, not how it changed.
+Example: value changes A → B → A; CAS sees A again and falsely assumes no modification occurred, causing inconsistent logic.
+This is known as the ABA problem — a major pitfall in CAS-based synchronization.
+- Solution: versioning or timestamps.
+To resolve ABA, CAS can include a version number or timestamp with each value.
+* On every update, both the value and version are changed.
+* The next CAS compares both fields; if the version differs, the operation fails, detecting ABA.
+Java provides this mechanism through classes like AtomicStampedReference (value + stamp pair).
+
+#5. Optimistic vs Pessimistic Locking
+- Concurrency introduces data-conflict risk.
+When multiple threads access and modify shared data simultaneously, inconsistent reads/writes can occur.
+To maintain correctness, concurrent systems must ensure mutual exclusion or conflict detection — leading to two distinct philosophies: pessimistic and optimistic.
+- Pessimistic locking: prevent conflict before it happens.
+* Assumes conflict is likely, so it locks data pre-emptively.
+* Other threads must wait until the lock is released.
+* Typical in high-contention, write-intensive environments (e.g., database row-level locks).
+* In Java, realized via
+-- synchronized keyword (JVM-intrinsic monitor lock)
+-- or the Lock interface (explicit mutual-exclusion control).
+* Ensures safety but causes blocking, context switching, and performance cost.
+- Optimistic locking: detect conflict after it happens.
+* Assumes conflict is rare, allowing threads to operate concurrently without immediate locks.
+* Each thread reads data, performs computation, and verifies freshness before commit.
+* If another thread changed the data, the update fails and retries.
+* Implemented via Compare-And-Swap (CAS) and Atomic classes (AtomicInteger, AtomicReference, etc.).
+* Enables non-blocking, lock-free concurrency with higher throughput under low contention.
+- Trade-off: certainty vs efficiency.
+* Pessimistic lock → guarantees consistency, wastes time waiting.
+* Optimistic lock → maximizes parallelism, risks retry overhead.
+* The better choice depends on conflict probability and system load:
+-- High contention → pessimistic.
+-- Low contention → optimistic.
+
+#5. Singleton Design Pattern → Thread-Safe Version 
+- Singleton ensures a single instance across the system.
+* The Singleton Pattern guarantees that only one instance of a class exists and provides a global access point to it.
+* It’s often used for shared resources (e.g., configuration managers, loggers, thread pools, database connections).
+- The core challenge: concurrent instantiation under multithreading.
+* In a multi-threaded environment, race conditions can occur if multiple threads try to create the instance simultaneously.
+* Without synchronization, multiple objects might be created — violating the Singleton principle.
+- Naïve Singleton is not thread-safe.
+Example: 2 threads may both see instance == null and create two separate objects.
+public class Singleton {
+    private static Singleton instance;
+    public static Singleton getInstance() {
+        if (instance == null)
+            instance = new Singleton();  // unsafe if two threads enter simultaneously
+        return instance;
+    }
+}
+- Thread safety is achieved through synchronization or initialization guarantees.
+* Several thread-safe strategies exist to prevent race conditions:
+(a) Synchronized Access Method
+Example: Simple and correct but introduces performance overhead from synchronization on every call.
+public static synchronized Singleton getInstance() {
+    if (instance == null)
+        instance = new Singleton();
+    return instance;
+}
+(b) Double-Checked Locking (Lazy + Efficient)
+Example: 1) Combines lazy initialization with conditional synchronization 2)Requires the volatile keyword to prevent instruction reordering by the JVM
+public static Singleton getInstance() {
+    if (instance == null) {
+        synchronized (Singleton.class) {
+            if (instance == null)
+                instance = new Singleton();
+        }
+    }
+    return instance;
+}
+(c) Static Inner Class (Initialization-on-demand Holder)
+Example: 1) Leverages class-loading guarantees of the JVM for thread safety 2) No synchronization overhead; instance created only when first accessed
+public class Singleton {
+    private Singleton() {}
+    private static class Holder {
+        private static final Singleton INSTANCE = new Singleton();
+    }
+    public static Singleton getInstance() {
+        return Holder.INSTANCE;
+    }
+}
+(d) Enum-based Singleton
+Example: Inherently thread-safe and protected from reflection or serialization attacks
+public enum Singleton {
+    INSTANCE;
+}
+- Thread-safe Singleton balances correctness and performance.
+* Synchronization ensures only one instance is created.
+* Patterns like double-check and holder class optimize efficiency while maintaining safety.
+* Proper design avoids redundant locks and guarantees visibility across threads.
