@@ -1,0 +1,122 @@
+1) Create the Spring project (from the Welcome screen)
+- Click New Project (big + tile)
+- On the left sidebar, click “Spring Boot” in the Generators section below “Maven Archetype.”
+2) Fill in project details
+* Name: aop-singleton-demo
+* Location: keep default or choose a folder.
+* Language: Java
+* Build System: Maven
+* JDK: your current JDK (OpenJDK 25 is fine).
+click NEXT
+3) Add Spring dependencies in the dependencies window:
+- Web> Spring Web
+click Finish.
+4) Add Spring AOP dependency manually
+- open the pom.xml (if you chose Maven) 
+- inside <dependencies> section, add this manually:
+----------------------------------------------------
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
+-----------------------------------------------------
+click RUN
+5) Verify the project builds
+- Wait for Maven/Gradle to finish syncing (bottom-right progress bar)
+- then open the AopSingletonDemoApplication.java (the one with @SpringBootApplication) and click the Run button once
+6) Add Singleton and AOP logic
+- Create a singleton bean
+* (In IntelliJ’s Project pane)right-click "src/main/java/com.example.aopsingletondemo">NEW>package>com.example.aopsingletondemo.service>ENTER
+* Right-click the new service package>New>JavaClass>Name it "MySingletonService"
+* Paste the following inside the new file
+-----------------------------------------------------
+package com.example.aopsingletondemo.service;
+
+import org.springframework.stereotype.Service;
+
+@Service // Singleton by default
+public class MySingletonService {
+    private int counter = 0;
+
+    public synchronized int incrementAndGet() {
+        return ++counter;
+    }
+
+    public int get() {
+        return counter;
+    }
+}
+-------------------------------------------------------
+- Add AOP logging
+* right-click "src/main/java/com.example.aopsingletondemo" > NEW > package > com.example.aopsingletondemo.aop > ENTER
+* Right-click aop package>New>JavaClass>Name it "AccessLoggingAspect"(.java))
+* Paste the following inside the new file
+-------------------------------------------------------
+package com.example.aopsingletondemo.aop;
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.stereotype.Component;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Aspect
+@Component
+public class AccessLoggingAspect {
+    private final ConcurrentHashMap<String, Set<Long>> seenThreads = new ConcurrentHashMap<>();
+
+    @Before("execution(public * com.example.aopsingletondemo.service.MySingletonService.*(..))")
+    public void logAccess(JoinPoint jp) {
+        String method = jp.getSignature().toShortString();
+        long tid = Thread.currentThread().getId();
+        String name = Thread.currentThread().getName();
+        Set<Long> ids = seenThreads.computeIfAbsent(method, k -> ConcurrentHashMap.newKeySet());
+        boolean first = ids.add(tid);
+        System.out.printf("[AOP] %s accessed by %s thread: id=%d%n",
+                method, first ? "NEW" : "existing", tid);
+    }
+}
+---------------------------------------------------------------
+- Add a controller to test it
+* right-click "src/main/java/com.example.aopsingletondemo">NEW>package>com.example.aopsingletondemo.web>ENTER
+* Right-click the web package>New>JavaClass>Name it "DemoController"(.java))
+* Paste the following inside the new file
+---------------------------------------------------------------
+package com.example.aopsingletondemo.web;
+
+import com.example.aopsingletondemo.service.MySingletonService;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.concurrent.*;
+
+@RestController
+public class DemoController {
+    private final MySingletonService singleton;
+
+    public DemoController(MySingletonService singleton) {
+        this.singleton = singleton;
+    }
+
+    @GetMapping("/demo")
+    public String demo() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(4);
+        Callable<Integer> task = singleton::incrementAndGet;
+        Future<Integer>[] results = new Future[10];
+        for (int i = 0; i < results.length; i++) results[i] = pool.submit(task);
+        StringBuilder sb = new StringBuilder("Results: ");
+        for (Future<Integer> f : results) sb.append(f.get()).append(' ');
+        pool.shutdown();
+        return sb.toString();
+    }
+}
+---------------------------------------------------------------
+6) run & test
+- In IntelliJ, click the green Run button
+- Open a browser and visit: http://localhost:8080/demo
+- In the Run console, you’ll see logs like:
+---------------------------------------------------------------
+[AOP] MySingletonService.incrementAndGet() accessed by NEW thread (id=25, name=pool-1-thread-1)
+[AOP] MySingletonService.incrementAndGet() accessed again by thread (id=25, name=pool-1-thread-1)
+...
+---------------------------------------------------------------
